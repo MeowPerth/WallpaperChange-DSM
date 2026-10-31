@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<!-- Wallpaper Changer — DSM 应用窗口单页
+     由 DSM nginx 托管（/webman/3rdparty/autowallpaper/），API 经同目录 api.cgi
+     转发到守护进程 unix socket。安装时 postinst 会把 __WALLPAPER_TOKEN__ 替换成实例 token。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallpaper Changer</title>
+<style>
+:root{
+  --bg:#f2f4f7; --card:#ffffff; --text:#1b2430; --muted:#6b7686; --line:#e3e7ee;
+  --accent:#2377ef; --accent-weak:#e8f1fe; --ok:#1fa45b; --warn:#e07b00; --err:#d84343;
+  --mono:"SF Mono",Consolas,"Liberation Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#16181d; --card:#1f2229; --text:#e8eaf0; --muted:#9aa3b2; --line:#2c313b;
+  --accent:#4b8ef7; --accent-weak:#243044; --ok:#37b96f; --warn:#f09b3c; --err:#ef6b6b;
+}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.55 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 18px 20px;height:100vh;
+  display:flex;flex-direction:column;min-height:0}
+h1{font-size:20px;margin:0;display:flex;align-items:center;gap:10px;min-width:0}
+h1 .logo{width:28px;height:28px;border-radius:7px;flex:none}
+h1 .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-bottom:14px;flex-wrap:wrap}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--accent-weak);
+  color:var(--accent);white-space:nowrap}
+.pill.ok{background:rgba(31,164,91,.14);color:var(--ok)}
+.pill.err{background:rgba(216,67,67,.14);color:var(--err)}
+.pill.busy{background:rgba(224,123,0,.14);color:var(--warn)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 14px;flex:none}
+.tab{background:none;border:none;border-bottom:2px solid transparent;border-radius:0;
+  padding:8px 16px;margin-bottom:-1px;color:var(--muted);font-size:14px;cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.panel{display:none;min-height:0}
+.panel.active{display:flex;flex-direction:column;flex:1;overflow-y:auto}
+#panel-status.active{overflow-y:auto}
+#panel-status .status-grid{flex:none}
+.status-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+@media (max-width:840px){.status-grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h2{font-size:13px;margin:0 0 10px;color:var(--muted);font-weight:600;
+  text-transform:uppercase;letter-spacing:.4px}
+.preview-card{display:flex;flex-direction:column;gap:10px}
+.preview{position:relative;aspect-ratio:16/9;background:var(--bg);border-radius:8px;
+  overflow:hidden;border:1px solid var(--line)}
+.preview img{width:100%;height:100%;object-fit:cover;display:none}
+.preview.has img{display:block}
+.preview-empty{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px}
+.preview-empty .ph-icon{font-size:34px;opacity:.6}
+.meta{font-size:12px;color:var(--muted);line-height:1.5;word-break:break-all;min-height:18px}
+.meta-title{color:var(--text);font-weight:600;font-size:13px;margin-bottom:2px}
+.meta-sub{font-size:12px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px}
+.kv .k{color:var(--muted);flex:none}
+.kv .v{font-family:var(--mono);text-align:right;word-break:break-all;font-size:13px}
+.v.ok{color:var(--ok)} .v.err{color:var(--err)} .v.warn{color:var(--warn)}
+.errrow{display:flex;gap:8px;margin-top:8px;padding:8px 10px;border-radius:8px;
+  background:rgba(216,67,67,.10);color:var(--err);font-size:12px;word-break:break-word}
+.warn-card{margin-top:14px}
+.warn-card ul{margin:0;padding-left:18px;color:var(--warn);font-size:13px}
+.warn-card li{margin:3px 0;word-break:break-word}
+.hidden{display:none!important}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--text);
+  padding:7px 14px;border-radius:8px;cursor:pointer;transition:.15s;white-space:nowrap}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.08);color:#fff}
+button:disabled{opacity:.55;cursor:default;pointer-events:none}
+button.small{padding:4px 10px;font-size:12px}
+.log-card{display:flex;flex-direction:column;flex:1;min-height:0}
+.log-card h2{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none}
+#logbox{background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  font-family:var(--mono);font-size:12px;line-height:1.6;padding:10px 12px;
+  flex:1;min-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.cfg-grid{display:flex;gap:14px;align-items:flex-start}
+.cfg-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:14px}
+@media (max-width:840px){
+  .cfg-grid{flex-direction:column}
+  .cfg-col{display:contents}
+  .fs-source{order:1}.fs-targets{order:2}.fs-schedule{order:3}.fs-advanced{order:4}
+}
+form fieldset{border:1px solid var(--line);border-radius:10px;margin:0;padding:12px 14px 16px;
+  background:var(--card)}
+form legend{font-size:13px;color:var(--muted);padding:0 6px;font-weight:600}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=number],input[type=password],input[type=time],select{
+  width:100%;font:inherit;color:var(--text);background:var(--bg);
+  border:1px solid var(--line);border-radius:7px;padding:7px 10px}
+select{appearance:auto}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+input.invalid{border-color:var(--err)!important}
+input:disabled{opacity:.55}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:600px){.row2{grid-template-columns:1fr}}
+.check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--text)}
+.check input{width:auto;margin:0}
+.radios{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.radio{display:flex;align-items:center;gap:8px;margin:0;padding:8px 12px;border:1px solid var(--line);
+  border-radius:8px;cursor:pointer;color:var(--text);background:var(--bg);flex:1;min-width:140px}
+.radio input{width:auto;margin:0}
+.radio.on{border-color:var(--accent);background:var(--accent-weak)}
+.inputrow{display:flex;gap:8px;align-items:center}
+.inputrow input{flex:1;min-width:0}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;overflow-wrap:anywhere;min-height:16px}
+.hint.ok{color:var(--ok)} .hint.err{color:var(--err)} .hint.warn{color:var(--warn)}
+.sub{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+.savebar{display:flex;justify-content:flex-end;gap:10px;margin:14px 0 4px;flex:none}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
+  background:var(--text);color:var(--bg);padding:9px 18px;border-radius:8px;font-size:13px;
+  opacity:0;pointer-events:none;transition:.25s;max-width:80vw;z-index:20;white-space:pre-wrap}
+.toast.show{opacity:.96}
+.toast.err{background:var(--err);color:#fff}
+.toast.ok{background:var(--ok);color:#fff}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
+  align-items:center;justify-content:center;z-index:30;padding:20px}
+.overlay .box{background:var(--card);border-radius:10px;padding:24px 26px;text-align:center;
+  max-width:420px;width:100%}
+.overlay .box h3{margin:0 0 8px;font-size:17px}
+.overlay .box p{margin:0 0 18px;color:var(--muted);font-size:13px;white-space:pre-wrap}
+.overlay .box .actions{display:flex;justify-content:center;gap:10px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;
+  border-top-color:transparent;border-radius:50%;animation:r .7s linear infinite;vertical-align:-2px}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1><img class="logo" src="images/wallpaper_64.png" alt="">
+      <span class="name" data-i18n="appName">壁纸自动更换</span>
+      <span class="pill" id="svcPill">…</span></h1>
+    <div class="top-actions">
+      <button class="primary" id="btnRun" data-i18n="runNow">立即更换</button>
+      <button id="btnRestore" data-i18n="restore">恢复默认</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="status" data-i18n="tabStatus">状态</button>
+    <button class="tab" data-tab="config" data-i18n="tabConfig">设置</button>
+    <button class="tab" data-tab="logs" data-i18n="tabLogs">日志</button>
+  </div>
+
+  <div class="panel active" id="panel-status">
+    <div class="status-grid">
+      <div class="card preview-card">
+        <div class="preview" id="previewBox">
+          <img id="previewImg" alt="">
+          <div class="preview-empty" id="previewEmpty">
+            <div class="ph-icon">🖼</div>
+            <div data-i18n="noPreview">还没有更换过壁纸</div>
+          </div>
+        </div>
+        <div class="meta" id="previewMeta">—</div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="statusTitle">运行状态</h2>
+        <div class="kv"><span class="k" data-i18n="lastRun">上次更换</span><span class="v" id="lastRun">—</span></div>
+        <div class="kv"><span class="k" data-i18n="result">结果</span><span class="v" id="resultVal">—</span></div>
+        <div class="kv"><span class="k" data-i18n="nextRun">下次自动</span><span class="v" id="nextRun">—</span></div>
+        <div class="kv"><span class="k" data-i18n="source">图源</span><span class="v" id="sourceVal">—</span></div>
+        <div class="kv"><span class="k" data-i18n="targets">应用目标</span><span class="v" id="targetsVal">—</span></div>
+        <div class="kv"><span class="k" data-i18n="saveDirLabel">原图保存</span><span class="v" id="savedVal">—</span></div>
+        <div class="kv"><span class="k" data-i18n="converter">缩放工具</span><span class="v" id="convVal">—</span></div>
+        <div class="kv"><span class="k" data-i18n="version">版本</span><span class="v" id="verVal">—</span></div>
+        <div class="errrow hidden" id="errRow"><span>⚠</span><span id="errText"></span></div>
+      </div>
+    </div>
+    <div class="card warn-card hidden" id="warnCard">
+      <h2 data-i18n="warnings">提示</h2>
+      <ul id="warnList"></ul>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-config">
+    <form id="cfgForm" autocomplete="off">
+      <div class="cfg-grid">
+        <div class="cfg-col">
+        <fieldset class="fs-source">
+          <legend data-i18n="fsSource">图源</legend>
+          <div class="radios">
+            <label class="radio on" id="radioBing"><input type="radio" name="source" id="f_source_bing" value="bing">
+              <span data-i18n="sourceBing">必应每日一图</span></label>
+            <label class="radio" id="radioLocal"><input type="radio" name="source" id="f_source_local" value="local">
+              <span data-i18n="sourceLocal">本地文件夹</span></label>
+          </div>
+
+          <div id="bingOpts">
+            <div class="row2">
+              <div><label data-i18n="bingMarket">必应市场</label>
+                <select id="f_market">
+                  <option value="zh-cn" data-i18n="marketCn">中国（zh-cn）</option>
+                  <option value="en-us" data-i18n="marketUs">美国（en-us）</option>
+                  <option value="en-gb" data-i18n="marketGb">英国（en-gb）</option>
+                  <option value="ja-jp" data-i18n="marketJp">日本（ja-jp）</option>
+                  <option value="de-de" data-i18n="marketDe">德国（de-de）</option>
+                  <option value="fr-fr" data-i18n="marketFr">法国（fr-fr）</option>
+                  <option value="auto" data-i18n="marketAuto">自动（不指定）</option>
+                </select></div>
+              <div><label>&nbsp;</label>
+                <label class="check" style="margin-top:0"><input type="checkbox" id="f_uhd">
+                  <span data-i18n="uhd">优先下载 4K 原图</span></label></div>
+            </div>
+            <label class="check"><input type="checkbox" id="f_save_bing">
+              <span data-i18n="saveBing">自动保存必应原图</span></label>
+            <label data-i18n="saveDirLabel">保存目录</label>
+            <input type="text" id="f_save_dir" placeholder="/volume1/photo/BingWallpaper">
+            <div class="hint" data-i18n="saveDirHint">按「日期@中文名-英文名.jpg」命名，同一天不重复下载</div>
+          </div>
+
+          <div id="localOpts" class="hidden">
+            <label data-i18n="localDir">本地图片文件夹</label>
+            <div class="inputrow">
+              <input type="text" id="f_local_dir" placeholder="/volume1/photo">
+              <button type="button" class="small" id="btnCheckLocal" data-i18n="check">检查</button>
+            </div>
+            <div class="hint" id="localResult"></div>
+            <label class="check"><input type="checkbox" id="f_recursive">
+              <span data-i18n="recursive">包含子文件夹</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="fs-schedule">
+          <legend data-i18n="fsSchedule">定时</legend>
+          <label data-i18n="scheduleMode">执行方式</label>
+          <select id="f_schedule_mode">
+            <option value="daily" data-i18n="modeDaily">每天固定时间</option>
+            <option value="interval" data-i18n="modeInterval">固定间隔</option>
+            <option value="off" data-i18n="modeOff">仅手动</option>
+          </select>
+          <div id="dailyOpts">
+            <label data-i18n="dailyTime">每天执行时间</label>
+            <input type="time" id="f_daily_time" min="00:00" max="23:59" step="60" placeholder="04:00">
+            <div class="hint" id="dailyHint" data-i18n="timeRange">00:00–23:59（24 小时制）</div>
+          </div>
+          <div id="intervalOpts" class="hidden">
+            <label data-i18n="intervalMin">间隔（分钟，≥5）</label>
+            <input type="number" id="f_interval_minutes" min="5" max="10080">
+          </div>
+          <label data-i18n="retryMin">失败重试间隔（分钟，0=不重试）</label>
+          <input type="number" id="f_retry_minutes" min="0" max="1440">
+          <label class="check"><input type="checkbox" id="f_run_on_start">
+            <span data-i18n="runOnStart">套件启动时先执行一次</span></label>
+          <label class="check"><input type="checkbox" id="f_skip_duplicate">
+            <span data-i18n="skipDuplicate">必应图源当天已应用则跳过（手动执行不受限）</span></label>
+          <div class="hint" data-i18n="scheduleHint">修改后由守护进程自动热加载，无需重启套件</div>
+        </fieldset>
+        </div>
+        <div class="cfg-col">
+        <fieldset class="fs-targets">
+          <legend data-i18n="fsTargets">应用目标</legend>
+          <label class="check"><input type="checkbox" id="f_target_login">
+            <span data-i18n="targetLogin">登录界面壁纸（所有入口）</span></label>
+          <label class="check"><input type="checkbox" id="f_target_desktop">
+            <span data-i18n="targetDesktop">DSM 桌面壁纸</span></label>
+          <label class="check"><input type="checkbox" id="f_target_user">
+            <span data-i18n="targetUser">指定用户的桌面壁纸</span></label>
+          <label data-i18n="userNames">用户名（多个用逗号分隔）</label>
+          <input type="text" id="f_user_names" placeholder="alice, bob">
+          <label data-i18n="userDir">用户壁纸目录（留空则使用同一张图）</label>
+          <div class="inputrow">
+            <input type="text" id="f_user_dir" placeholder="/volume1/photo/users">
+            <button type="button" class="small" id="btnCheckUser" data-i18n="check">检查</button>
+          </div>
+          <div class="hint" id="userResult"></div>
+
+          <div class="row2 sub">
+            <div><label data-i18n="loginSize">登录壁纸尺寸</label>
+              <input type="text" id="f_login_size" placeholder="1920x1200"></div>
+            <div><label data-i18n="thumbSize">桌面缩略图尺寸</label>
+              <input type="text" id="f_thumb_size" placeholder="160x100"></div>
+            <div><label data-i18n="userSize">用户壁纸尺寸</label>
+              <input type="text" id="f_user_size" placeholder="1920x1200"></div>
+            <div><label data-i18n="userThumbSize">用户缩略图尺寸</label>
+              <input type="text" id="f_user_thumb_size" placeholder="120x120"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="f_resize">
+            <span data-i18n="resize">使用 ImageMagick 缩放（未安装时直接复制原图）</span></label>
+          <label class="check"><input type="checkbox" id="f_set_login_text">
+            <span data-i18n="setLoginText">必应图源时同步登录页欢迎语</span></label>
+        </fieldset>
+
+        <fieldset class="fs-advanced">
+          <legend data-i18n="fsAdvanced">高级</legend>
+          <div class="row2">
+            <div><label data-i18n="timeout">下载超时（秒）</label>
+              <input type="number" id="f_timeout" min="5" max="300"></div>
+            <div><label data-i18n="retries">下载重试（次）</label>
+              <input type="number" id="f_retries" min="1" max="10"></div>
+            <div><label data-i18n="logSize">日志上限（MiB）</label>
+              <input type="number" id="f_log_mb" min="0.0625" max="50" step="0.0625"></div>
+            <div><label data-i18n="logBackups">日志备份份数</label>
+              <input type="number" id="f_log_backups" min="1" max="10"></div>
+          </div>
+          <div class="hint" data-i18n="advHint">缩放依赖套件中心安装的 ImageMagick；未安装时壁纸不会缩放，但功能仍可用。</div>
+          <label class="check"><input type="checkbox" id="f_token_write">
+            <span data-i18n="tokenWrite">允许实例 token 保存（DSM 会话失效/反代访问时；会降低安全性）</span></label>
+        </fieldset>
+        </div>
+      </div>
+
+      <div class="savebar">
+        <button type="button" id="btnResetDefaults" data-i18n="resetDefaults">填入默认值</button>
+        <button type="submit" class="primary" id="btnSave" data-i18n="save">保存设置</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel" id="panel-logs">
+    <div class="card log-card">
+      <h2>
+        <span data-i18n="logTitle">运行日志</span>
+        <span style="display:flex;gap:10px;align-items:center">
+          <label class="check" style="margin:0"><input type="checkbox" id="autoLog">
+            <span style="font-size:12px" data-i18n="autoRefresh">自动刷新</span></label>
+          <button type="button" class="small" id="btnLog" data-i18n="refresh">刷新</button>
+        </span>
+      </h2>
+      <div id="logbox"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="authOverlay"><div class="box">
+  <div style="font-size:34px">🔒</div>
+  <p data-i18n="needLogin">需要以 DSM 管理员登录后才能访问。请登录 NAS 管理界面后刷新本页。</p>
+  <button class="primary" onclick="location.reload()" data-i18n="reload">刷新页面</button>
+</div></div>
+
+<div class="overlay" id="confirmOverlay"><div class="box">
+  <h3 data-i18n="restoreTitle">恢复默认壁纸？</h3>
+  <p data-i18n="restoreConfirm">将把首次更换前备份的登录壁纸、桌面壁纸和用户壁纸恢复回去，并移除登录页欢迎语。此操作不会卸载套件。</p>
+  <div class="actions">
+    <button type="button" id="btnCancelRestore" data-i18n="cancel">取消</button>
+    <button type="button" class="primary" id="btnConfirmRestore" data-i18n="confirm">确认恢复</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- API：同目录 api.cgi（CGI → daemon unix socket） ---------- */
+const API_BASE = location.pathname.replace(/\/[^\/]*$/, "");
+const TOKEN = "__WALLPAPER_TOKEN__";
+const AUTH_HDR = (/^[0-9a-f]{16,}$/i.test(TOKEN)) ? {"X-Wallpaper-Token": TOKEN} : {};
+if (AUTH_HDR["X-Wallpaper-Token"]) {
+  document.cookie = "wallpaper_token=" + TOKEN + "; path=/; SameSite=Lax";
+}
+
+/* ---------- i18n ---------- */
+const I18N = {
+  zh: {appName:"壁纸自动更换", tabStatus:"状态", tabConfig:"设置", tabLogs:"日志",
+    statusTitle:"运行状态", noPreview:"还没有更换过壁纸", lastRun:"上次更换", result:"结果",
+    nextRun:"下次自动", source:"图源", targets:"应用目标", saveDirLabel:"原图保存",
+    converter:"缩放工具", version:"版本", warnings:"提示", runNow:"立即更换", restore:"恢复默认",
+    running:"运行中", stopped:"未运行", busy:"执行中", never:"尚未", success:"成功",
+    failed:"失败", skipped:"已跳过（今日已应用）", manualOnly:"仅手动", notInstalled:"未安装（不缩放）",
+    login:"登录", desktop:"桌面", users:"用户", off:"关闭", refresh:"刷新", autoRefresh:"自动刷新",
+    logTitle:"运行日志", logEmpty:"暂无日志", fsSource:"图源", sourceBing:"必应每日一图",
+    sourceLocal:"本地文件夹", bingMarket:"必应市场", uhd:"优先下载 4K 原图",
+    saveBing:"自动保存必应原图", saveDirHint:"按「日期@中文名-英文名.jpg」命名，同一天不重复下载",
+    localDir:"本地图片文件夹", check:"检查", recursive:"包含子文件夹", checking:"检查中…",
+    dirOk:"找到 {n} 张图片", dirEmpty:"目录存在，但没有找到图片", dirMissing:"目录不存在或不可访问",
+    fsTargets:"应用目标", targetLogin:"登录界面壁纸（所有入口）", targetDesktop:"DSM 桌面壁纸",
+    targetUser:"指定用户的桌面壁纸", userNames:"用户名（多个用逗号分隔）",
+    userDir:"用户壁纸目录（留空则使用同一张图）", loginSize:"登录壁纸尺寸",
+    thumbSize:"桌面缩略图尺寸", userSize:"用户壁纸尺寸", userThumbSize:"用户缩略图尺寸",
+    resize:"使用 ImageMagick 缩放（未安装时直接复制原图）", setLoginText:"必应图源时同步登录页欢迎语",
+    fsSchedule:"定时", scheduleMode:"执行方式", modeDaily:"每天固定时间", modeInterval:"固定间隔",
+    modeOff:"仅手动", dailyTime:"每天执行时间", timeRange:"00:00–23:59（24 小时制）",
+    timeInvalid:"时间格式应为 HH:MM，小时 00–23，分钟 00–59", intervalMin:"间隔（分钟，≥5）",
+    retryMin:"失败重试间隔（分钟，0=不重试）", runOnStart:"套件启动时先执行一次",
+    skipDuplicate:"必应图源当天已应用则跳过（手动执行不受限）",
+    scheduleHint:"修改后由守护进程自动热加载，无需重启套件", fsAdvanced:"高级",
+    timeout:"下载超时（秒）", retries:"下载重试（次）", logSize:"日志上限（MiB）",
+    logBackups:"日志备份份数",
+    advHint:"缩放依赖套件中心安装的 ImageMagick；未安装时壁纸不会缩放，但功能仍可用。",
+    resetDefaults:"填入默认值", save:"保存设置", saving:"保存中…", saved:"设置已保存",
+    filled:"已填入默认值，记得保存", restoreTitle:"恢复默认壁纸？",
+    restoreConfirm:"将把首次更换前备份的登录壁纸、桌面壁纸和用户壁纸恢复回去，并移除登录页欢迎语。此操作不会卸载套件。",
+    cancel:"取消", confirm:"确认恢复", restoring:"恢复中…", restored:"已恢复默认壁纸",
+    needLogin:"需要以 DSM 管理员登录后才能访问。请登录 NAS 管理界面后刷新本页。", reload:"刷新页面",
+    runDone:"壁纸更换完成", runFail:"更换失败", unknownError:"未知错误", marketCn:"中国（zh-cn）",
+    marketUs:"美国（en-us）", marketGb:"英国（en-gb）", marketJp:"日本（ja-jp）",
+    marketDe:"德国（de-de）", marketFr:"法国（fr-fr）", marketAuto:"自动（不指定）",
+    imgMeta:"{source} · {title}", tokenWrite:"允许实例 token 保存（DSM 会话失效/反代访问时；会降低安全性）"},
+  en: {appName:"Wallpaper Changer", tabStatus:"Status", tabConfig:"Settings", tabLogs:"Logs",
+    statusTitle:"Status", noPreview:"No wallpaper applied yet", lastRun:"Last run", result:"Result",
+    nextRun:"Next run", source:"Source", targets:"Targets", saveDirLabel:"Saved to",
+    converter:"Resizer", version:"Version", warnings:"Notes", runNow:"Apply now", restore:"Restore default",
+    running:"Running", stopped:"Stopped", busy:"Working", never:"Never", success:"Success",
+    failed:"Failed", skipped:"Skipped (already applied today)", manualOnly:"Manual only",
+    notInstalled:"Not installed (no resize)", login:"Login", desktop:"Desktop", users:"Users",
+    off:"Off", refresh:"Refresh", autoRefresh:"Auto refresh", logTitle:"Logs", logEmpty:"No logs yet",
+    fsSource:"Source", sourceBing:"Bing daily image", sourceLocal:"Local folder",
+    bingMarket:"Bing market", uhd:"Prefer 4K original", saveBing:"Save Bing original",
+    saveDirHint:"Named date@title-english.jpg; same day is not downloaded twice",
+    localDir:"Local image folder", check:"Check", recursive:"Include subfolders",
+    checking:"Checking…", dirOk:"{n} images found", dirEmpty:"Folder exists but no images",
+    dirMissing:"Folder missing or not accessible", fsTargets:"Apply to",
+    targetLogin:"Login wallpaper (all portals)", targetDesktop:"DSM desktop wallpaper",
+    targetUser:"Desktop wallpaper of users", userNames:"Usernames (comma separated)",
+    userDir:"User wallpaper folder (empty = same image)", loginSize:"Login size",
+    thumbSize:"Desktop thumbnail size", userSize:"User wallpaper size",
+    userThumbSize:"User thumbnail size",
+    resize:"Resize with ImageMagick (copy original if missing)", setLoginText:"Update login welcome text for Bing",
+    fsSchedule:"Schedule", scheduleMode:"Mode", modeDaily:"Daily at", modeInterval:"Every N minutes",
+    modeOff:"Manual only", dailyTime:"Daily time", timeRange:"00:00–23:59 (24-hour)",
+    timeInvalid:"Use HH:MM with hours 00–23 and minutes 00–59", intervalMin:"Interval (minutes, >=5)",
+    retryMin:"Retry after failure (minutes, 0=off)", runOnStart:"Run once when package starts",
+    skipDuplicate:"Skip if today's Bing image was applied (manual run ignores)",
+    scheduleHint:"Changes are hot-reloaded by the daemon; no restart needed", fsAdvanced:"Advanced",
+    timeout:"Download timeout (s)", retries:"Download retries", logSize:"Log max size (MiB)",
+    logBackups:"Log backups",
+    advHint:"Resizing requires ImageMagick from Package Center; without it wallpapers are copied as-is.",
+    resetDefaults:"Fill defaults", save:"Save", saving:"Saving…", saved:"Settings saved",
+    filled:"Defaults filled; remember to save", restoreTitle:"Restore default wallpapers?",
+    restoreConfirm:"Restore the login, desktop and user wallpapers backed up before the first change, and remove the login welcome text. The package stays installed.",
+    cancel:"Cancel", confirm:"Restore", restoring:"Restoring…", restored:"Default wallpapers restored",
+    needLogin:"Please log in to DSM as an administrator and reload this page.", reload:"Reload",
+    runDone:"Wallpaper updated", runFail:"Update failed", unknownError:"Unknown error",
+    marketCn:"China (zh-cn)", marketUs:"United States (en-us)", marketGb:"United Kingdom (en-gb)",
+    marketJp:"Japan (ja-jp)", marketDe:"Germany (de-de)", marketFr:"France (fr-fr)",
+    marketAuto:"Auto (no market)", imgMeta:"{source} · {title}",
+    tokenWrite:"Allow token to save (when DSM session fails / behind proxy; lowers security)"},
+};
+const L = I18N[(navigator.language || "zh").toLowerCase().startsWith("zh") ? "zh" : "en"];
+
+/* ---------- utils ---------- */
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg, cls){
+  const t = $("toast"); t.textContent = msg; t.className = "toast show " + (cls || "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = "toast", 3200);
+}
+function api(action, opt){
+  opt = opt || {};
+  const hdr = Object.assign({}, AUTH_HDR);
+  let p;
+  if (opt.body !== undefined) {
+    const f = new URLSearchParams();
+    f.set("action", action);
+    f.set("payload", JSON.stringify(opt.body));
+    p = fetch(API_BASE + "/api.cgi", {method: "POST",
+      headers: Object.assign({"Content-Type": "application/x-www-form-urlencoded"}, hdr),
+      credentials: "same-origin", body: f});
+  } else {
+    const q = new URLSearchParams(Object.assign({action: action}, opt.params || {}));
+    p = fetch(API_BASE + "/api.cgi?" + q, {headers: hdr, credentials: "same-origin"});
+  }
+  return p.then(r => r.text().then(t => {
+    let d = null;
+    try { d = JSON.parse(t); } catch (e) {}
+    if (!d) {
+      throw Object.assign(new Error("HTTP " + r.status), {code: r.status,
+        auth: r.status === 401 || r.status === 403});
+    }
+    if (d.error) {
+      const msg = d.message || (d.detail ? d.detail.join("\n") : d.error);
+      throw Object.assign(new Error(msg), {code: d.error,
+        auth: d.error === "unauthorized", data: d});
+    }
+    return d;
+  }));
+}
+function busyBtn(btn, on, label){
+  if (!btn) return;
+  if (on){ btn.dataset.txt = btn.textContent; btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> ' + (label || "…"); }
+  else { btn.disabled = false; if (btn.dataset.txt) btn.textContent = btn.dataset.txt; }
+}
+let working = false;
+function setWorking(on, btn, label){
+  working = on;
+  ["btnRun", "btnRestore", "btnSave"].forEach(id => { if ($(id)) $(id).disabled = on; });
+  if (on && btn) busyBtn(btn, true, label);
+  else if (btn) busyBtn(btn, false);
+}
+
+/* ---------- status ---------- */
+function fmt(v){ return (v === null || v === undefined || v === "") ? L.never : v; }
+function sourceName(v){
+  if (v === "bing") return L.sourceBing;
+  if (v === "local") return L.sourceLocal;
+  if (v === "default") return L.restore;
+  return "—";
+}
+function targetSummary(c){
+  if (!c) return "—";
+  const parts = [];
+  if (c.target_login) parts.push(L.login);
+  if (c.target_desktop) parts.push(L.desktop);
+  if (c.target_user) parts.push(L.users + (c.user_names && c.user_names.length ? ": " + c.user_names.join(", ") : ""));
+  return parts.length ? parts.join(" / ") : L.off;
+}
+function applyStatus(s){
+  const c = s.config || {};
+  const pill = $("svcPill");
+  if (s.busy || working){ pill.textContent = L.busy; pill.className = "pill busy"; }
+  else { pill.textContent = L.running; pill.className = "pill ok"; }
+
+  $("lastRun").textContent = fmt(s.last_attempt_time);
+  const r = s.last_result || {};
+  const resultEl = $("resultVal");
+  if (r.restored){
+    resultEl.textContent = L.restored;
+    resultEl.className = "v ok";
+  } else if (s.last_ok === true){
+    resultEl.textContent = r.skipped ? L.skipped : L.success;
+    resultEl.className = "v ok";
+  } else if (s.last_ok === false){
+    resultEl.textContent = L.failed + (s.last_error ? ": " + s.last_error : "");
+    resultEl.className = "v err";
+  } else { resultEl.textContent = "—"; resultEl.className = "v"; }
+
+  if (s.next_run_time) {
+    let rel = "";
+    if (s.next_run_in_seconds !== null && s.next_run_in_seconds !== undefined){
+      const m = Math.max(0, Math.round(s.next_run_in_seconds / 60));
+      rel = m >= 60 ? " · " + Math.floor(m / 60) + "h " + (m % 60) + "m" : " · " + m + "m";
+    }
+    $("nextRun").textContent = s.next_run_time + rel;
+  } else {
+    $("nextRun").textContent = L.manualOnly;
+  }
+  $("sourceVal").textContent = sourceName(s.last_source || c.source);
+  $("targetsVal").textContent = targetSummary(c);
+  $("savedVal").textContent = s.saved_to || (c.save_bing ? c.save_dir : L.off);
+  $("convVal").textContent = s.converter && s.converter.available
+      ? s.converter.label : L.notInstalled;
+  $("convVal").className = "v" + (s.converter && s.converter.available ? "" : " warn");
+  $("verVal").textContent = "v" + (s.package_version || "?");
+
+  $("errRow").classList.toggle("hidden", !s.last_error);
+  if (s.last_error) $("errText").textContent = s.last_error;
+
+  const warn = (r.warnings || []);
+  $("warnCard").classList.toggle("hidden", !warn.length);
+  $("warnList").innerHTML = "";
+  warn.forEach(w => { const li = document.createElement("li"); li.textContent = w; $("warnList").appendChild(li); });
+
+  const box = $("previewBox"), img = $("previewImg");
+  if (s.preview_url){
+    const url = API_BASE + "/" + s.preview_url;
+    if (img.getAttribute("src") !== url) img.setAttribute("src", url);
+    box.classList.add("has");
+    $("previewEmpty").style.display = "none";
+  } else {
+    box.classList.remove("has");
+    img.removeAttribute("src");
+    $("previewEmpty").style.display = "";
+  }
+  let metaHtml = "";
+  if (s.bing_title) metaHtml += '<div class="meta-title">' + escapeHtml(s.bing_title) + "</div>";
+  const metaSub = [];
+  if (s.bing_date) metaSub.push(escapeHtml(fmtDate(s.bing_date)));
+  if (s.bing_copyright) metaSub.push(escapeHtml(s.bing_copyright));
+  metaHtml += '<div class="meta-sub">' + (metaSub.join(" · ") || "—") + "</div>";
+  $("previewMeta").innerHTML = metaHtml;
+}
+function fmtDate(v){
+  const m = String(v || "").match(/^(\d{4})(\d{2})(\d{2})$/);
+  return m ? m[1] + "-" + m[2] + "-" + m[3] : v;
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+function pollStatus(){
+  api("status").then(s => applyStatus(s))
+    .catch(e => {
+      if (e.auth) showAuth();
+      const pill = $("svcPill"); pill.textContent = L.stopped; pill.className = "pill err";
+    });
+}
+
+/* ---------- config ---------- */
+function setRadio(value){
+  $("f_source_bing").checked = value === "bing";
+  $("f_source_local").checked = value === "local";
+  syncSource();
+}
+function syncSource(){
+  const local = $("f_source_local").checked;
+  $("bingOpts").classList.toggle("hidden", local);
+  $("localOpts").classList.toggle("hidden", !local);
+  $("radioBing").classList.toggle("on", !local);
+  $("radioLocal").classList.toggle("on", local);
+}
+function syncSchedule(){
+  const mode = $("f_schedule_mode").value;
+  $("dailyOpts").classList.toggle("hidden", mode !== "daily");
+  $("intervalOpts").classList.toggle("hidden", mode !== "interval");
+  if (mode === "daily") updateDailyHint();
+}
+function syncSaveBing(){
+  $("f_save_dir").disabled = !$("f_save_bing").checked;
+}
+const RE_TIME_UI = /^([01]\d|2[0-3]):[0-5]\d$/;
+function updateDailyHint(){
+  const el = $("f_daily_time"), hint = $("dailyHint");
+  if (!el || !hint) return true;
+  const value = (el.value || "").trim();
+  const bad = value !== "" && !RE_TIME_UI.test(value);
+  hint.textContent = bad ? L.timeInvalid : L.timeRange;
+  hint.className = "hint" + (bad ? " err" : "");
+  el.classList.toggle("invalid", bad);
+  return !bad;
+}
+function ensureOption(select, value){
+  if (!value) return;
+  if (!Array.from(select.options).some(o => o.value === value)){
+    const o = document.createElement("option");
+    o.value = value; o.textContent = value;
+    select.appendChild(o);
+  }
+  select.value = value;
+}
+function fillForm(c){
+  setRadio(c.source || "bing");
+  ensureOption($("f_market"), c.bing_market || "zh-cn");
+  $("f_uhd").checked = !!c.bing_uhd;
+  $("f_save_bing").checked = !!c.save_bing;
+  $("f_save_dir").value = c.save_dir || "";
+  $("f_local_dir").value = c.local_dir || "";
+  $("f_recursive").checked = !!c.local_recursive;
+  $("f_user_dir").value = c.user_dir || "";
+  $("f_target_login").checked = !!c.target_login;
+  $("f_target_desktop").checked = !!c.target_desktop;
+  $("f_target_user").checked = !!c.target_user;
+  $("f_user_names").value = (c.user_names || []).join(", ");
+  $("f_login_size").value = c.login_size || "1920x1200";
+  $("f_thumb_size").value = c.thumb_size || "160x100";
+  $("f_user_size").value = c.user_size || "1920x1200";
+  $("f_user_thumb_size").value = c.user_thumb_size || "120x120";
+  $("f_resize").checked = !!c.resize;
+  $("f_set_login_text").checked = !!c.set_login_text;
+  $("f_schedule_mode").value = c.schedule_mode || "daily";
+  $("f_daily_time").value = c.daily_time || "04:00";
+  updateDailyHint();
+  $("f_interval_minutes").value = c.interval_minutes || 720;
+  $("f_retry_minutes").value = (c.retry_minutes === 0) ? 0 : (c.retry_minutes || 30);
+  $("f_run_on_start").checked = !!c.run_on_start;
+  $("f_skip_duplicate").checked = c.skip_duplicate !== false;
+  $("f_timeout").value = c.download_timeout || 30;
+  $("f_retries").value = c.download_retries || 5;
+  $("f_log_mb").value = ((c.log_max_bytes || 1048576) / 1048576);
+  $("f_log_backups").value = c.log_backup_count || 3;
+  $("f_token_write").checked = !!c.token_write;
+  syncSchedule(); syncSaveBing();
+  $("localResult").textContent = ""; $("userResult").textContent = "";
+}
+function loadConfig(){
+  return api("config").then(c => { fillForm(c); return c; })
+    .catch(e => { if (e.auth) showAuth(); });
+}
+function collectConfig(){
+  const source = $("f_source_local").checked ? "local" : "bing";
+  const payload = {
+    source: source,
+    bing_market: $("f_market").value,
+    bing_uhd: $("f_uhd").checked,
+    save_bing: source === "bing" && $("f_save_bing").checked,
+    save_dir: $("f_save_dir").value.trim(),
+    local_dir: $("f_local_dir").value.trim(),
+    local_recursive: $("f_recursive").checked,
+    user_dir: $("f_user_dir").value.trim(),
+    target_login: $("f_target_login").checked,
+    target_desktop: $("f_target_desktop").checked,
+    target_user: $("f_target_user").checked,
+    user_names: $("f_user_names").value,
+    login_size: $("f_login_size").value.trim(),
+    thumb_size: $("f_thumb_size").value.trim(),
+    user_size: $("f_user_size").value.trim(),
+    user_thumb_size: $("f_user_thumb_size").value.trim(),
+    resize: $("f_resize").checked,
+    set_login_text: $("f_set_login_text").checked,
+    schedule_mode: $("f_schedule_mode").value,
+    daily_time: $("f_daily_time").value.trim(),
+    interval_minutes: parseInt($("f_interval_minutes").value, 10),
+    retry_minutes: parseInt($("f_retry_minutes").value, 10),
+    run_on_start: $("f_run_on_start").checked,
+    skip_duplicate: $("f_skip_duplicate").checked,
+    download_timeout: parseInt($("f_timeout").value, 10),
+    download_retries: parseInt($("f_retries").value, 10),
+    log_max_bytes: Math.round(parseFloat($("f_log_mb").value) * 1048576),
+    log_backup_count: parseInt($("f_log_backups").value, 10),
+    token_write: $("f_token_write").checked,
+  };
+  return payload;
+}
+
+/* ---------- 目录检查 ---------- */
+function checkDir(path, recursive, out){
+  const el = $(out);
+  if (!path){ el.textContent = ""; el.className = "hint"; return; }
+  el.textContent = L.checking; el.className = "hint";
+  api("check_dir", {body: {path: path, recursive: recursive}}).then(d => {
+    if (!d.exists){ el.textContent = L.dirMissing; el.className = "hint err"; return; }
+    if (d.error){ el.textContent = d.error; el.className = "hint err"; return; }
+    el.textContent = (d.count ? L.dirOk.replace("{n}", d.count) : L.dirEmpty)
+      + (d.sample && d.sample.length ? "\n" + d.sample[0] : "");
+    el.className = "hint " + (d.count ? "ok" : "warn");
+  }).catch(e => {
+    if (e.auth) return showAuth();
+    el.textContent = e.message; el.className = "hint err";
+  });
+}
+
+/* ---------- 事件 ---------- */
+document.querySelectorAll("input[name=source]").forEach(r => r.addEventListener("change", syncSource));
+$("f_schedule_mode").addEventListener("change", syncSchedule);
+$("f_save_bing").addEventListener("change", syncSaveBing);
+["input", "change", "blur"].forEach(ev =>
+  $("f_daily_time").addEventListener(ev, updateDailyHint));
+$("btnCheckLocal").addEventListener("click", () => checkDir($("f_local_dir").value.trim(), $("f_recursive").checked, "localResult"));
+$("btnCheckUser").addEventListener("click", () => checkDir($("f_user_dir").value.trim(), $("f_recursive").checked, "userResult"));
+
+$("cfgForm").addEventListener("submit", ev => {
+  ev.preventDefault();
+  if (working) return;
+  const p = collectConfig();
+  if (!/^\d{2,5}x\d{2,5}$/.test(p.login_size) || !/^\d{2,5}x\d{2,5}$/.test(p.thumb_size)
+      || !/^\d{2,5}x\d{2,5}$/.test(p.user_size) || !/^\d{2,5}x\d{2,5}$/.test(p.user_thumb_size)){
+    toast("尺寸格式应为 宽x高，例如 1920x1200", "err"); return;
+  }
+  if (p.schedule_mode === "daily" && !RE_TIME_UI.test(p.daily_time)){
+    updateDailyHint();
+    toast(L.timeInvalid, "err");
+    $("f_daily_time").focus();
+    return;
+  }
+  setWorking(true, $("btnSave"), L.saving);
+  api("config_put", {body: p}).then(() => {
+    toast(L.saved, "ok");
+    return loadConfig();
+  }).then(() => pollStatus())
+    .catch(e => { if (e.auth) showAuth(); else toast(e.message, "err"); })
+    .finally(() => { setWorking(false, $("btnSave")); syncSaveBing(); });
+});
+
+$("btnResetDefaults").addEventListener("click", () => {
+  api("defaults").then(d => { fillForm(d); toast(L.filled, "ok"); })
+    .catch(e => { if (e.auth) showAuth(); else toast(e.message, "err"); });
+});
+
+$("btnRun").addEventListener("click", () => {
+  if (working) return;
+  setWorking(true, $("btnRun"), L.running);
+  api("run", {body: {force: true}}).then(r => {
+    toast(r.skipped ? L.skipped : L.runDone, "ok");
+    return pollStatus().then(refreshLog);
+  }).catch(e => {
+    if (e.auth) showAuth();
+    else toast((e.data && e.data.result && e.data.result.error) || e.message || L.runFail, "err");
+    pollStatus(); refreshLog();
+  }).finally(() => setWorking(false, $("btnRun")));
+});
+
+function openRestore(){ $("confirmOverlay").style.display = "flex"; }
+function closeRestore(){ $("confirmOverlay").style.display = "none"; }
+$("btnRestore").addEventListener("click", openRestore);
+$("btnCancelRestore").addEventListener("click", closeRestore);
+$("confirmOverlay").addEventListener("click", ev => { if (ev.target === $("confirmOverlay")) closeRestore(); });
+$("btnConfirmRestore").addEventListener("click", () => {
+  closeRestore();
+  if (working) return;
+  setWorking(true, $("btnRestore"), L.restoring);
+  api("restore", {body: {}}).then(() => {
+    toast(L.restored, "ok");
+    return pollStatus().then(refreshLog);
+  }).catch(e => { if (e.auth) showAuth(); else toast(e.message, "err"); })
+    .finally(() => setWorking(false, $("btnRestore")));
+});
+
+/* ---------- 日志 ---------- */
+function refreshLog(){
+  api("logs", {params: {n: 300}}).then(d => {
+    $("logbox").textContent = (d.lines && d.lines.length) ? d.lines.join("\n") : L.logEmpty;
+    $("logbox").scrollTop = $("logbox").scrollHeight;
+  }).catch(e => { if (e.auth) showAuth(); });
+}
+$("btnLog").addEventListener("click", refreshLog);
+setInterval(() => { if ($("autoLog").checked) refreshLog(); }, 5000);
+
+/* ---------- 分页 ---------- */
+function showTab(name, updateHash){
+  if (name !== "status" && name !== "config" && name !== "logs") name = "status";
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === "panel-" + name));
+  if (updateHash !== false) {
+    try { history.replaceState(null, "", "#" + name); }
+    catch (e) { location.hash = name; }
+  }
+  if (name === "config") loadConfig();
+  else if (name === "logs") refreshLog();
+  else pollStatus();
+}
+document.querySelectorAll(".tab").forEach(t =>
+  t.addEventListener("click", () => showTab(t.dataset.tab)));
+window.addEventListener("hashchange", () =>
+  showTab((location.hash || "#status").slice(1), false));
+
+function showAuth(){ $("authOverlay").style.display = "flex"; }
+
+/* ---------- 静态文案 ---------- */
+document.querySelectorAll("[data-i18n]").forEach(el => {
+  if (L[el.dataset.i18n]) el.textContent = L[el.dataset.i18n];
+});
+document.title = L.appName;
+
+/* ---------- 启动 ---------- */
+const initialTab = (location.hash || "").replace("#", "");
+if (initialTab === "config" || initialTab === "logs") {
+  showTab(initialTab, false);
+} else {
+  setRadio("bing");
+  syncSaveBing();
+  pollStatus();
+  refreshLog();
+}
+setInterval(pollStatus, 5000);
+</script>
+</body>
+</html>

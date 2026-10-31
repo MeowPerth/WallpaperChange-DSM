@@ -1,0 +1,37 @@
+#!/bin/sh
+# Wallpaper Changer 服务变量（installer 与 start-stop-status 共同 source）
+# DSM 7.4 不允许未签名第三方套件直接 run-as root；套件以 sc-autowallpaper
+# 运行，通过 conf/privilege 的 tool 段把 bin/wallpaper-helper 设为
+# root:autowallpaper 6550（setuid），由它启动/停止 root 守护进程。
+
+PKG_USER="sc-autowallpaper"
+USER="sc-autowallpaper"
+EFF_USER="sc-autowallpaper"
+
+# DSM 7.2 一般自带 /usr/bin/python3；若没有，则使用套件中心安装的 Python。
+find_python ()
+{
+    for c in /usr/bin/python3 /usr/local/bin/python3 \
+             /var/packages/Python3*/target/bin/python3; do
+        if [ -x "$c" ] && "$c" -c 'import ssl, json, http.server' >/dev/null 2>&1; then
+            echo "$c"
+            return 0
+        fi
+    done
+    _c=$(command -v python3 2>/dev/null) || return 1
+    if [ -n "$_c" ] && "$_c" -c 'import ssl, json, http.server' >/dev/null 2>&1; then
+        echo "$_c"
+        return 0
+    fi
+    return 1
+}
+
+PYTHON="$(find_python 2>/dev/null || true)"
+
+HELPER="${SYNOPKG_PKGDEST}/bin/wallpaper-helper"
+SERVICE_COMMAND="${HELPER} start"
+
+# 服务启停日志（sc-autowallpaper 可写）；守护进程自己的日志在 wallpaper.log（root）
+LOG_FILE="${SYNOPKG_PKGVAR}/service.log"
+DAEMON_LOG="${SYNOPKG_PKGVAR}/wallpaper.log"
+PID_FILE="${SYNOPKG_PKGVAR}/wallpaper.pid"

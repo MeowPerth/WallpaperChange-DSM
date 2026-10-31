@@ -1,0 +1,226 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# Wallpaper Changer 安装器（DSM 7.2）
+# preinst/postinst/preuninst/postuninst/preupgrade/postupgrade 六个薄壳
+# source 本文件后调用同名函数。安装/卸载阶段均为 root（conf/privilege root）。
+# ---------------------------------------------------------------------------
+INST_LOG="/var/log/packages/${SYNOPKG_PKGNAME}.log"
+
+install_log ()
+{
+    if [ $# -eq 0 ]; then
+        while IFS= read -r _line; do
+            [ -n "${_line}" ] && echo "$(date +'%Y/%m/%d %H:%M:%S') ${_line}" 1>&2
+        done
+    else
+        echo "$(date +'%Y/%m/%d %H:%M:%S') $*" 1>&2
+    fi
+}
+
+log_step ()
+{
+    install_log "===> Step $1. STATUS=${SYNOPKG_PKG_STATUS} PKG=${SYNOPKG_PKGNAME}"
+}
+
+call_func ()
+{
+    FUNC=$1
+    if command -v "${FUNC}" >/dev/null 2>&1; then
+        install_log "Begin ${FUNC}"
+        eval "${FUNC}" 2>&1 | install_log
+        install_log "End ${FUNC}"
+    fi
+}
+
+[ -n "${SYNOPKG_PKGVAR}" ] || SYNOPKG_PKGVAR="${SYNOPKG_PKGDEST}/var"
+
+SVC_SETUP="$(dirname "$0")/service-setup"
+[ -r "${SVC_SETUP}" ] && . "${SVC_SETUP}"
+
+# target/var 默认文件 → 持久目录；已存在不覆盖，新增/变更项以 .new 补入
+syno_sync_var_folder ()
+{
+    _var="${SYNOPKG_PKGDEST}/var"
+    [ -d "$_var" ] || return 0
+    [ -n "$(ls -A "$_var" 2>/dev/null)" ] || return 0
+    install_log "Sync default files from target/var to ${SYNOPKG_PKGVAR}"
+    mkdir -p "${SYNOPKG_PKGVAR}"
+    find "$_var" -type f | while read -r _f; do
+        _rel=${_f#${_var}/}
+        if [ ! -e "${SYNOPKG_PKGVAR}/${_rel}" ]; then
+            mkdir -p "${SYNOPKG_PKGVAR}/$(dirname "${_rel}")"
+            cp -f "$_f" "${SYNOPKG_PKGVAR}/${_rel}" && install_log "  + ${_rel}"
+        fi
+    done
+    find "$_var" -type f | while read -r _f; do
+        _rel=${_f#${_var}/}
+        if [ -e "${SYNOPKG_PKGVAR}/${_rel}" ] && ! cmp -s "$_f" "${SYNOPKG_PKGVAR}/${_rel}"; then
+            cp -f "$_f" "${SYNOPKG_PKGVAR}/${_rel}.new" && install_log "  ~ ${_rel}.new"
+        fi
+    done
+}
+
+ensure_token ()
+{
+    [ -s "${SYNOPKG_PKGVAR}/token" ] && return 0
+    if [ -n "${PYTHON}" ] && [ -x "${PYTHON}" ]; then
+        "${PYTHON}" -c 'import secrets; print(secrets.token_hex(24))' \
+            > "${SYNOPKG_PKGVAR}/token" 2>/dev/null || true
+    fi
+    if [ ! -s "${SYNOPKG_PKGVAR}/token" ]; then
+        head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "${SYNOPKG_PKGVAR}/token"
+    fi
+    chmod 0640 "${SYNOPKG_PKGVAR}/token" 2>/dev/null || true
+    install_log "token generated -> ${SYNOPKG_PKGVAR}/token"
+}
+
+
+fix_api_shebang ()
+{
+    _cgi="${SYNOPKG_PKGDEST}/ui/api.cgi"
+    [ -f "${_cgi}" ] || return 0
+    [ -n "${PYTHON}" ] || return 0
+    chmod 0755 "${_cgi}" 2>/dev/null || true
+    case "$(head -n 1 "${_cgi}")" in
+        "#!${PYTHON}") ;;
+        *) sed -i "1s|^#!.*|#!${PYTHON}|" "${_cgi}" && install_log "api.cgi shebang -> ${PYTHON}" ;;
+    esac
+}
+
+inject_token ()
+{
+    _page="${SYNOPKG_PKGDEST}/ui/index.html"
+    [ -f "${_page}" ] || { install_log "WARN: ui/index.html 缺失，跳过 token 注入"; return 0; }
+    [ -s "${SYNOPKG_PKGVAR}/token" ] || { install_log "WARN: token 缺失，跳过注入"; return 0; }
+    _tok=$(cat "${SYNOPKG_PKGVAR}/token")
+    sed -i "s/__WALLPAPER_TOKEN__/${_tok}/g" "${_page}" \
+        && install_log "token injected into ui/index.html"
+    if grep -q "__WALLPAPER_TOKEN__" "${_page}" 2>/dev/null; then
+        install_log "WARN: ui/index.html 仍含未替换占位符，token 只读通道将不可用"
+    fi
+}
+
+log_environment ()
+{
+    _conv=""
+    for c in /usr/bin/convert /usr/syno/bin/convert /usr/local/bin/convert /usr/bin/magick \
+             /var/packages/ImageMagick/target/bin/convert \
+             /var/packages/ImageMagick/target/bin/magick \
+             /var/packages/ImageMagick7/target/bin/magick; do
+        if [ -x "$c" ]; then _conv="$c"; break; fi
+    done
+    [ -n "$_conv" ] || _conv=$(command -v convert 2>/dev/null || true)
+    if [ -n "$_conv" ]; then
+        install_log "ImageMagick: ${_conv}"
+    else
+        install_log "ImageMagick: not installed (wallpapers will be copied without resizing)"
+    fi
+    [ -r /etc/VERSION ] && install_log "DSM: $(grep -E '^(productversion|buildnumber)=' /etc/VERSION | tr '\n' ' ')"
+    [ -n "${PYTHON}" ] && install_log "python3: ${PYTHON}"
+}
+
+check_helper ()
+{
+    _h="${SYNOPKG_PKGDEST}/bin/wallpaper-helper"
+    if [ -x "${_h}" ]; then
+        install_log "helper: $(ls -l "${_h}" 2>/dev/null)"
+        if ls -l "${_h}" 2>/dev/null | grep -q 'r-s'; then
+            install_log "setuid helper OK"
+        else
+            install_log "WARN: helper 未带 setuid 位；请重新安装套件以触发 conf/privilege 的 tool 授权"
+        fi
+    else
+        install_log "WARN: helper 不存在或不可执行: ${_h}"
+    fi
+}
+
+check_python ()
+{
+    if [ -z "${PYTHON}" ] || [ ! -x "${PYTHON}" ]; then
+        echo "ERROR: python3 not found. This package needs DSM 7.2 built-in python3 or the Python 3.9 package from Package Center." 1>&2
+        return 1
+    fi
+    if ! "${PYTHON}" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 7) else 1)' 2>/dev/null; then
+        echo "ERROR: python3 >= 3.7 required, found $("${PYTHON}" -V 2>&1)" 1>&2
+        return 1
+    fi
+    install_log "python3 OK: $("${PYTHON}" -V 2>&1)"
+}
+
+preinst ()
+{
+    log_step preinst
+    check_python || exit 1
+    call_func log_environment
+    call_func service_preinst
+    exit 0
+}
+
+postinst ()
+{
+    log_step postinst
+    call_func syno_sync_var_folder
+    call_func ensure_token
+    call_func inject_token
+    call_func fix_api_shebang
+    call_func check_helper
+    call_func service_postinst
+    exit 0
+}
+
+preuninst ()
+{
+    log_step preuninst
+    # DSM 升级也会调用 preuninst（STATUS=UPGRADE）；升级时不能恢复壁纸，
+    # 否则每次升级都会把用户当前壁纸还原成安装前那张。
+    if [ "${SYNOPKG_PKG_STATUS}" = "UPGRADE" ]; then
+        install_log "upgrade: skip wallpaper restore"
+        call_func service_preuninst
+        exit 0
+    fi
+
+    # 卸载前通过 setuid helper 恢复首次修改前的系统壁纸。
+    # 数据目录（配置/备份）保留，重装后可继续使用。
+    _helper="${SYNOPKG_PKGDEST}/bin/wallpaper-helper"
+    if [ -x "${_helper}" ]; then
+        install_log "Restoring original wallpapers before uninstall ..."
+        _out=$("${_helper}" restore 2>&1)
+        _rc=$?
+        install_log "restore exit=${_rc}"
+        [ -n "${_out}" ] && printf '%s\n' "${_out}" | install_log
+        "${_helper}" cleanup >/dev/null 2>&1 || true
+    else
+        install_log "WARN: helper 缺失，无法恢复系统壁纸，保持现状"
+    fi
+    call_func service_preuninst
+    exit 0
+}
+
+postuninst ()
+{
+    log_step postuninst
+    # 默认保留 ${SYNOPKG_PKGVAR}（配置/备份/日志）；彻底清除请手动删除该目录
+    rm -f /var/run/autowallpaper.sock 2>/dev/null || true
+    call_func service_postuninst
+    exit 0
+}
+
+preupgrade ()
+{
+    log_step preupgrade
+    check_python || exit 1
+    call_func service_preupgrade
+    exit 0
+}
+
+postupgrade ()
+{
+    log_step postupgrade
+    call_func syno_sync_var_folder
+    call_func ensure_token
+    call_func inject_token
+    call_func fix_api_shebang
+    call_func check_helper
+    call_func service_postupgrade
+    exit 0
+}

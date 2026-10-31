@@ -1,0 +1,10 @@
+{
+  "defaults": {"run-as": "package"},
+  "username": "sc-autowallpaper",
+  "groupname": "autowallpaper",
+  "join-groupname": "http",
+  "tool": [
+    {"relpath": "bin/wallpaper-helper", "user": "root", "group": "package", "permission": "6550"},
+    {"relpath": "bin/wallpaper-daemon.py", "user": "root", "group": "package", "permission": "0700"}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "dsm-wrapper.js": {
+    "MeowPerth.AutoWallpaper.AppInstance": {
+      "type": "app",
+      "title": "Wallpaper Changer",
+      "desc": "群晖登录壁纸与桌面壁纸自动更换",
+      "version": "1.0",
+      "icon": "images/wallpaper_256.png",
+      "allowMultiInstance": false,
+      "allUsers": false,
+      "appWindow": "MeowPerth.AutoWallpaper.AppWindow",
+      "depend": ["MeowPerth.AutoWallpaper.AppWindow"]
+    },
+    "MeowPerth.AutoWallpaper.AppWindow": {
+      "type": "lib",
+      "title": "Wallpaper Changer",
+      "icon": "images/wallpaper_256.png"
+    }
+  }
+}

@@ -1,0 +1,95 @@
+#!/bin/sh
+# Wallpaper Changer start/stop/status/log
+# 以 sc-autowallpaper 运行；需要 root 的操作通过 setuid helper 完成。
+DNAME="${SYNOPKG_PKGNAME:-autowallpaper}"
+[ -n "${SYNOPKG_PKGVAR}" ] || SYNOPKG_PKGVAR="${SYNOPKG_PKGDEST}/var"
+
+SVC_SETUP="$(dirname "$0")/service-setup"
+[ -r "${SVC_SETUP}" ] && . "${SVC_SETUP}"
+
+LOG_FILE="${LOG_FILE:-${SYNOPKG_PKGVAR}/service.log}"
+DAEMON_LOG="${DAEMON_LOG:-${SYNOPKG_PKGVAR}/wallpaper.log}"
+PID_FILE="${PID_FILE:-${SYNOPKG_PKGVAR}/wallpaper.pid}"
+HELPER="${HELPER:-${SYNOPKG_PKGDEST}/bin/wallpaper-helper}"
+
+daemon_status ()
+{
+    [ -x "${HELPER}" ] || return 1
+    "${HELPER}" status >/dev/null 2>&1
+}
+
+call_func ()
+{
+    FUNC=$1
+    if command -v "${FUNC}" >/dev/null 2>&1; then
+        echo "Begin ${FUNC}" >> "${LOG_FILE}"
+        eval "${FUNC}" >> "${LOG_FILE}" 2>&1
+        echo "End ${FUNC}" >> "${LOG_FILE}"
+    fi
+}
+
+case "$1" in
+    prestart|prestop)
+        exit 0
+        ;;
+    start)
+        mkdir -p "${SYNOPKG_PKGVAR}" 2>/dev/null || true
+        if daemon_status; then
+            echo "${DNAME} is already running" >> "${LOG_FILE}"
+            exit 0
+        fi
+        if [ ! -x "${HELPER}" ]; then
+            echo "ERROR: setuid helper not found or not executable: ${HELPER}" >> "${LOG_FILE}"
+            exit 1
+        fi
+        if [ -f "${LOG_FILE}" ] && [ "$(wc -c < "${LOG_FILE}" 2>/dev/null || echo 0)" -gt 262144 ]; then
+            tail -c 131072 "${LOG_FILE}" > "${LOG_FILE}.tmp" 2>/dev/null \
+                && mv -f "${LOG_FILE}.tmp" "${LOG_FILE}"
+        fi
+        echo "===== $(date) =====" >> "${LOG_FILE}"
+        echo "Starting ${DNAME} via ${HELPER} ..." >> "${LOG_FILE}"
+        call_func service_prestart
+        nohup "${HELPER}" start >> "${LOG_FILE}" 2>&1 &
+        echo $! > "${PID_FILE}"
+        sleep 2
+        if ! daemon_status; then
+            echo "ERROR: ${DNAME} failed to start (see ${LOG_FILE} and ${DAEMON_LOG})" >> "${LOG_FILE}"
+            rm -f "${PID_FILE}"
+            exit 1
+        fi
+        echo "${DNAME} started (pid $(cat "${PID_FILE}" 2>/dev/null))" >> "${LOG_FILE}"
+        exit 0
+        ;;
+    stop)
+        if ! daemon_status; then
+            echo "${DNAME} is not running" >> "${LOG_FILE}"
+            rm -f "${PID_FILE}"
+            [ -x "${HELPER}" ] && "${HELPER}" cleanup >/dev/null 2>&1 || true
+            exit 0
+        fi
+        echo "Stopping ${DNAME} ..." >> "${LOG_FILE}"
+        if [ -x "${HELPER}" ]; then
+            "${HELPER}" stop >> "${LOG_FILE}" 2>&1
+        else
+            echo "ERROR: helper missing, cannot stop root daemon" >> "${LOG_FILE}"
+            exit 1
+        fi
+        rm -f "${PID_FILE}"
+        call_func service_poststop
+        exit 0
+        ;;
+    status)
+        if daemon_status; then
+            echo "${DNAME} is running"
+            exit 0
+        fi
+        echo "${DNAME} is not running"
+        exit 3
+        ;;
+    log)
+        [ -r "${DAEMON_LOG}" ] && tail -n 100 "${DAEMON_LOG}"
+        [ -r "${LOG_FILE}" ] && tail -n 40 "${LOG_FILE}"
+        exit 0
+        ;;
+esac
+exit 1
