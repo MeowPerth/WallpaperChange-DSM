@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PKG_NAME="autowallpaper"
 VERSION="1.0.0"
-BUILD="0008"
+BUILD="0009"
 ARCH="epyc7002 x86_64"
 ARCH_TAG="x86_64"
 SPK_FILE="${ROOT}/dist/${PKG_NAME}_${ARCH_TAG}-dsm7_${VERSION}-${BUILD}.spk"
@@ -88,7 +88,7 @@ distributor_url="https://github.com/MeowPerth/WallpaperChange-SPK"
 helpurl="https://github.com/MeowPerth/WallpaperChange-SPK#readme"
 support_url="https://github.com/MeowPerth/WallpaperChange-SPK/issues"
 startable="yes"
-changelog="1.0.0-0008: 每天执行时间改用原生 time 控件并增加行内校验，禁止 33:00 等非法时间；其余同 0007。"
+changelog="1.0.0-0009: 更新开发者/支持链接指向 WallpaperChange-SPK 项目；无功能变更。"
 checksum="$CHECKSUM"
 EOF
 

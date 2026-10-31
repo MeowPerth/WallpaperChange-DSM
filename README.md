@@ -64,7 +64,7 @@
 ## 安装
 
 1. 从 [Releases](https://github.com/MeowPerth/WallpaperChange-SPK/releases) 下载最新 `.spk`，
-   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0008.spk`；
+   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0009.spk`；
 2. 套件中心 → 右上角「手动安装」→ 选择该 `.spk`；
 3. 提示「发布者未经 Synology 验证」属正常（未申请官方签名），继续；
 4. 安装完成后，DSM 主菜单出现 **Wallpaper Changer**（仅管理员可见），点击打开；
@@ -225,7 +225,7 @@ DSM 桌面磁贴（ui/config + dsm-wrapper.js）
 
 ```bash
 ./build.sh
-# → dist/autowallpaper_x86_64-dsm7_1.0.0-0008.spk
+# → dist/autowallpaper_x86_64-dsm7_1.0.0-0009.spk
 ```
 
 构建机需要：**x86_64 Linux**、bash、tar、gzip、md5sum、python3、**gcc（静态编译）**。
@@ -380,6 +380,12 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 
 ## 更新日志
 
+### 1.0.0-0009
+
+- 更新套件 `INFO` 中的开发者/支持链接，统一指向本项目
+  `https://github.com/MeowPerth/WallpaperChange-SPK`；无功能变更。
+- README 增加「开发者」区块。
+
 ### 1.0.0-0008
 
 - 「每天执行时间」由自由文本改为浏览器原生 `time` 控件（`min=00:00`、`max=23:59`、`step=60`），
@@ -424,6 +430,13 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 
 - 首个 SPK 版本：必应 / 本地图源，登录 / 桌面 / 用户壁纸，定时与失败重试，
   备份恢复，DSM 原生应用窗口，日志滚动。
+
+## 开发者
+
+- **维护者**：MeowPerth
+- **项目主页**：<https://github.com/MeowPerth/WallpaperChange-SPK>
+- **问题反馈**：<https://github.com/MeowPerth/WallpaperChange-SPK/issues>
+- **上游脚本**：[MeowPerth/DSM_AutoChangeWallpaper](https://github.com/MeowPerth/DSM_AutoChangeWallpaper)（MIT）
 
 ## 致谢
 
