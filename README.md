@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="src/ui/images/wallpaper_256.png" width="120" alt="WallpaperChange-SPK">
+  <img src="src/ui/images/wallpaper_256.png" width="120" alt="WallpaperChange-DSM">
 </p>
 
-<h1 align="center">WallpaperChange-SPK</h1>
+<h1 align="center">WallpaperChange-DSM</h1>
 
 <p align="center">
   <strong>群晖 DSM 原生壁纸自动更换套件</strong><br>
@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MeowPerth/WallpaperChange-SPK/releases"><img src="https://img.shields.io/github/v/release/MeowPerth/WallpaperChange-SPK?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/MeowPerth/WallpaperChange-DSM/releases"><img src="https://img.shields.io/github/v/release/MeowPerth/WallpaperChange-DSM?style=flat-square" alt="Release"></a>
   <img src="https://img.shields.io/badge/DSM-7.2%2B-0066CC?style=flat-square&logo=synology&logoColor=white" alt="DSM 7.2+">
   <img src="https://img.shields.io/badge/arch-x86__64-informational?style=flat-square" alt="x86_64">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT">
 </p>
 
-**WallpaperChange-SPK** 把 [MeowPerth/DSM_AutoChangeWallpaper](https://github.com/MeowPerth/DSM_AutoChangeWallpaper)
+**WallpaperChange-DSM** 把 [MeowPerth/DSM_AutoChangeWallpaper](https://github.com/MeowPerth/DSM_AutoChangeWallpaper)
 从「SSH 脚本 + 任务计划程序」重构为 **Synology DSM 原生套件**。安装后无需 SSH、Docker 或任务计划，
 在 DSM 桌面的应用窗口中即可完成图源、目标、尺寸、定时、日志与备份恢复。
 
@@ -63,8 +63,8 @@
 
 ## 安装
 
-1. 从 [Releases](https://github.com/MeowPerth/WallpaperChange-SPK/releases) 下载最新 `.spk`，
-   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0009.spk`；
+1. 从 [Releases](https://github.com/MeowPerth/WallpaperChange-DSM/releases) 下载最新 `.spk`，
+   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0010.spk`；
 2. 套件中心 → 右上角「手动安装」→ 选择该 `.spk`；
 3. 提示「发布者未经 Synology 验证」属正常（未申请官方签名），继续；
 4. 安装完成后，DSM 主菜单出现 **Wallpaper Changer**（仅管理员可见），点击打开；
@@ -225,7 +225,7 @@ DSM 桌面磁贴（ui/config + dsm-wrapper.js）
 
 ```bash
 ./build.sh
-# → dist/autowallpaper_x86_64-dsm7_1.0.0-0009.spk
+# → dist/autowallpaper_x86_64-dsm7_1.0.0-0010.spk
 ```
 
 构建机需要：**x86_64 Linux**、bash、tar、gzip、md5sum、python3、**gcc（静态编译）**。
@@ -380,10 +380,15 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 
 ## 更新日志
 
+### 1.0.0-0010
+
+- 项目更名为 **WallpaperChange-DSM**；套件 `INFO` 的开发者/支持链接同步指向新仓库。
+- 无功能变更。
+
 ### 1.0.0-0009
 
 - 更新套件 `INFO` 中的开发者/支持链接，统一指向本项目
-  `https://github.com/MeowPerth/WallpaperChange-SPK`；无功能变更。
+  `https://github.com/MeowPerth/WallpaperChange-DSM`；无功能变更。
 - README 增加「开发者」区块。
 
 ### 1.0.0-0008
@@ -434,8 +439,8 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 ## 开发者
 
 - **维护者**：MeowPerth
-- **项目主页**：<https://github.com/MeowPerth/WallpaperChange-SPK>
-- **问题反馈**：<https://github.com/MeowPerth/WallpaperChange-SPK/issues>
+- **项目主页**：<https://github.com/MeowPerth/WallpaperChange-DSM>
+- **问题反馈**：<https://github.com/MeowPerth/WallpaperChange-DSM/issues>
 - **上游脚本**：[MeowPerth/DSM_AutoChangeWallpaper](https://github.com/MeowPerth/DSM_AutoChangeWallpaper)（MIT）
 
 ## 致谢
