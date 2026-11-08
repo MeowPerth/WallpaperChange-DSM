@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Wallpaper Changer CGI → daemon 适配器
+WallpaperChange CGI → daemon 适配器
 部署位置：/webman/3rdparty/autowallpaper/api.cgi
 
 为什么走 CGI：

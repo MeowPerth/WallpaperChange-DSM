@@ -20,7 +20,7 @@
 从「SSH 脚本 + 任务计划程序」重构为 **Synology DSM 原生套件**。安装后无需 SSH、Docker 或任务计划，
 在 DSM 桌面的应用窗口中即可完成图源、目标、尺寸、定时、日志与备份恢复。
 
-- 套件中心手动安装后，DSM 主菜单出现 **Wallpaper Changer** 磁贴；
+- 套件中心手动安装后，DSM 主菜单出现 **壁纸自动更换** 磁贴（英文显示 **WallpaperChange**）；
 - 点击以 **DSM 原生应用窗口**打开（可拖动 / 可缩放 / 可最大化）；
 - 图源、目标、尺寸、定时、日志全部在窗口内完成，**不需要 SSH、不需要任务计划、不需要 Docker**；
 - 保留上游全部能力：必应每日一图、本地图片、登录壁纸、桌面壁纸、用户壁纸、自动保存必应原图。
@@ -64,10 +64,10 @@
 ## 安装
 
 1. 从 [Releases](https://github.com/MeowPerth/WallpaperChange-DSM/releases) 下载最新 `.spk`，
-   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0010.spk`；
+   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0011.spk`；
 2. 套件中心 → 右上角「手动安装」→ 选择该 `.spk`；
 3. 提示「发布者未经 Synology 验证」属正常（未申请官方签名），继续；
-4. 安装完成后，DSM 主菜单出现 **Wallpaper Changer**（仅管理员可见），点击打开；
+4. 安装完成后，DSM 主菜单出现 **壁纸自动更换**（英文显示 **WallpaperChange**，仅管理员可见），点击打开；
 5. 若套件状态为「已停止」，在套件中心点「启动」。
 
 > 若磁贴未出现，注销并重新登录 DSM 刷新主菜单缓存。
@@ -225,7 +225,7 @@ DSM 桌面磁贴（ui/config + dsm-wrapper.js）
 
 ```bash
 ./build.sh
-# → dist/autowallpaper_x86_64-dsm7_1.0.0-0010.spk
+# → dist/autowallpaper_x86_64-dsm7_1.0.0-0011.spk
 ```
 
 构建机需要：**x86_64 Linux**、bash、tar、gzip、md5sum、python3、**gcc（静态编译）**。
@@ -326,7 +326,7 @@ sudo /usr/syno/sbin/synogroup --del autowallpaper
 
 然后再安装。正常升级不需要这一步。
 
-**Q：主菜单里没有 Wallpaper Changer？**
+**Q：主菜单里没有「壁纸自动更换 / WallpaperChange」？**
 只有 `administrators` 组成员可见；注销并重新登录 DSM 刷新菜单缓存。
 
 **Q：点击磁贴打开空白/提示 daemon unreachable？**
@@ -379,6 +379,12 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 - 备份恢复有目标路径白名单，synoinfo 原值重新转义，降低 manifest 被篡改后的风险。
 
 ## 更新日志
+
+### 1.0.0-0011
+
+- 套件显示名称调整为：默认 **壁纸自动更换**，英文 **WallpaperChange**。
+- 应用窗口/菜单磁贴标题同步为「壁纸自动更换」；英文界面标题为 WallpaperChange。
+- 无功能变更。
 
 ### 1.0.0-0010
 

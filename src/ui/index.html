@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!-- Wallpaper Changer — DSM 应用窗口单页
+<!-- WallpaperChange — DSM 应用窗口单页
      由 DSM nginx 托管（/webman/3rdparty/autowallpaper/），API 经同目录 api.cgi
      转发到守护进程 unix socket。安装时 postinst 会把 __WALLPAPER_TOKEN__ 替换成实例 token。 -->
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wallpaper Changer</title>
+<title>壁纸自动更换</title>
 <style>
 :root{
   --bg:#f2f4f7; --card:#ffffff; --text:#1b2430; --muted:#6b7686; --line:#e3e7ee;
@@ -394,7 +394,7 @@ const I18N = {
     marketUs:"美国（en-us）", marketGb:"英国（en-gb）", marketJp:"日本（ja-jp）",
     marketDe:"德国（de-de）", marketFr:"法国（fr-fr）", marketAuto:"自动（不指定）",
     imgMeta:"{source} · {title}", tokenWrite:"允许实例 token 保存（DSM 会话失效/反代访问时；会降低安全性）"},
-  en: {appName:"Wallpaper Changer", tabStatus:"Status", tabConfig:"Settings", tabLogs:"Logs",
+  en: {appName:"WallpaperChange", tabStatus:"Status", tabConfig:"Settings", tabLogs:"Logs",
     statusTitle:"Status", noPreview:"No wallpaper applied yet", lastRun:"Last run", result:"Result",
     nextRun:"Next run", source:"Source", targets:"Targets", saveDirLabel:"Saved to",
     converter:"Resizer", version:"Version", warnings:"Notes", runNow:"Apply now", restore:"Restore default",

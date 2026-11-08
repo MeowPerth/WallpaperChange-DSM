@@ -1,5 +1,5 @@
 #!/bin/sh
-# Wallpaper Changer start/stop/status/log
+# WallpaperChange start/stop/status/log
 # 以 sc-autowallpaper 运行；需要 root 的操作通过 setuid helper 完成。
 DNAME="${SYNOPKG_PKGNAME:-autowallpaper}"
 [ -n "${SYNOPKG_PKGVAR}" ] || SYNOPKG_PKGVAR="${SYNOPKG_PKGDEST}/var"

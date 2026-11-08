@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wallpaper Changer SPK 一键打包
+# WallpaperChange-DSM SPK 一键打包
 # 产物：dist/autowallpaper_noarch-dsm7_<version>-<build>.spk
 # .spk = 未压缩 tar{ INFO, package.tgz, scripts/, conf/, PACKAGE_ICON*.PNG, LICENSE }
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PKG_NAME="autowallpaper"
 VERSION="1.0.0"
-BUILD="0010"
+BUILD="0011"
 ARCH="epyc7002 x86_64"
 ARCH_TAG="x86_64"
 SPK_FILE="${ROOT}/dist/${PKG_NAME}_${ARCH_TAG}-dsm7_${VERSION}-${BUILD}.spk"
@@ -76,7 +76,8 @@ description_chs="自动更换 DSM 登录壁纸与桌面壁纸，支持必应每�
 description_cht="自動更換 DSM 登入壁紙與桌面壁紙，支援 Bing 每日一圖與本機圖片。"
 arch="$ARCH"
 os_min_ver="7.2-64570"
-displayname="Wallpaper Changer"
+displayname="壁纸自动更换"
+displayname_enu="WallpaperChange"
 displayname_chs="壁纸自动更换"
 displayname_cht="壁紙自動更換"
 dsmuidir="ui"
@@ -88,7 +89,7 @@ distributor_url="https://github.com/MeowPerth/WallpaperChange-DSM"
 helpurl="https://github.com/MeowPerth/WallpaperChange-DSM#readme"
 support_url="https://github.com/MeowPerth/WallpaperChange-DSM/issues"
 startable="yes"
-changelog="1.0.0-0010: 项目更名为 WallpaperChange-DSM，开发者/支持链接同步更新；无功能变更。"
+changelog="1.0.0-0011: 套件显示名称改为「壁纸自动更换」（英文 WallpaperChange），应用窗口标题同步。"
 checksum="$CHECKSUM"
 EOF
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ---------------------------------------------------------------------------
-# Wallpaper Changer 安装器（DSM 7.2）
+# WallpaperChange 安装器（DSM 7.2）
 # preinst/postinst/preuninst/postuninst/preupgrade/postupgrade 六个薄壳
 # source 本文件后调用同名函数。安装/卸载阶段均为 root（conf/privilege root）。
 # ---------------------------------------------------------------------------
