@@ -266,6 +266,31 @@ class DaemonTest(unittest.TestCase):
             "/usr/syno/synoman/webman/resources/images/1x/default_wallpaper/../../../../etc/passwd"))
         self.assertEqual(wp.conf_quote('$(reboot)'), '"\$(reboot)"')
 
+    def test_09_user_wallpaper_settings(self):
+        logical = "/usr/syno/etc/preference/root/usersettings"
+        settings = wp.resolve_target(logical)
+        write_file(settings, json.dumps({
+            "Desktop": {"wallpaper": {"wallpaper": 2, "wallpaper_path": "/old.jpg"}},
+            "Personal": {"lang": "def"},
+        }))
+        self.assertTrue(wp.update_user_wallpaper_setting(logical, "/global/dsm7_01.jpg"))
+        with open(settings, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        wall = data["Desktop"]["wallpaper"]
+        self.assertEqual(wall["wallpaper"], 3)
+        self.assertEqual(wall["wallpaper_path"], "/global/dsm7_01.jpg")
+        self.assertTrue(wall["customize_background"])
+        self.assertEqual(wall["customize_background_type"], "image")
+        self.assertTrue(wall["newImage"])
+        self.assertEqual(wall["version"], 2)
+        self.assertEqual(data["Personal"]["lang"], "def")
+        self.assertTrue(os.path.exists(settings + ".autowallpaper.bak"))
+        self.assertTrue(wp.update_user_wallpaper_setting(logical, "/global/dsm7_01.jpg"))
+        with open(settings, "r", encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["Desktop"]["wallpaper"]["wallpaper"], 4)
+        self.assertFalse(wp.update_user_wallpaper_setting(
+            "/usr/syno/etc/preference/missing/usersettings", "/global/dsm7_01.jpg"))
+
     def test_05_check_dir(self):
         info = self.engine.check_dir(self.photo_sys, recursive=True)
         self.assertTrue(info["exists"])

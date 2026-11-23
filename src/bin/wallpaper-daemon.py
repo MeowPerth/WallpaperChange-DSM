@@ -70,6 +70,8 @@ LOGIN_FILES = (
 DESKTOP_BASE = "/usr/syno/synoman/webman/resources/images"
 DESKTOP_SIZES = ("1x", "2x")
 DESKTOP_TYPES = ("default_login_background", "default_wallpaper")
+GLOBAL_DESKTOP_WALLPAPER = os.path.join(
+    DESKTOP_BASE, "1x", "default_wallpaper", "dsm7_01.jpg")
 USER_PREF_DIR = "/usr/syno/etc/preference"
 
 SYNOINFO_KEYS = ("login_background_customize", "login_welcome_title", "login_welcome_msg")
@@ -821,6 +823,56 @@ class Converter:
 
 # ---------------------------------------------------------------- 备份 ----
 
+def update_user_wallpaper_setting(settings_path, wallpaper_path=GLOBAL_DESKTOP_WALLPAPER):
+    """把 DSM 7.4 用户桌面壁纸指向当前全局壁纸，并递增缓存版本。
+
+    DSM 7.4 的桌面壁纸 URL 由 usersettings.Desktop.wallpaper.wallpaper 作为
+    缓存 id；只改 jpg 文件而不改 usersettings，浏览器会继续用旧缓存，表现为
+    “用户壁纸没有更换”。该函数只改桌面壁纸字段，其他个性化设置保持原样。
+    返回 True 表示已写入；False 表示用户还没有 usersettings（从未登录过）。
+    """
+    full = resolve_target(settings_path)
+    if not os.path.isfile(full):
+        return False
+    with open(full, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError("usersettings 不是 JSON 对象")
+    desktop = data.get("Desktop")
+    if not isinstance(desktop, dict):
+        desktop = {}
+        data["Desktop"] = desktop
+    wall = desktop.get("wallpaper")
+    if not isinstance(wall, dict):
+        wall = {}
+        desktop["wallpaper"] = wall
+    try:
+        current_id = int(wall.get("wallpaper") or 0)
+    except (TypeError, ValueError):
+        current_id = 0
+    wall["customize_background"] = True
+    wall["customize_background_type"] = "image"
+    wall["wallpaper_path"] = wallpaper_path
+    wall.pop("wallpaper_hd_path", None)
+    wall["wallpaper_position"] = wall.get("wallpaper_position") or "fill"
+    wall["wallpaper_ext"] = ".jpg"
+    wall["wallpaper_type"] = "fromDS"
+    wall["newImage"] = True
+    wall["version"] = 2
+    wall["wallpaper"] = current_id + 1 if current_id < 100000 else 1
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    st = os.stat(full)
+    bak = full + ".autowallpaper.bak"
+    try:
+        if not os.path.exists(bak):
+            shutil.copy2(full, bak)
+    except OSError:
+        pass
+    atomic_write_bytes(full, payload, mode=st.st_mode & 0o777,
+                       uid=st.st_uid, gid=st.st_gid)
+    return True
+
+
 def safe_restore_target(key):
     """限制 backup manifest 可写回的路径，防止被篡改后 root 任意写文件。"""
     if key == SYNOINFO_CONF:
@@ -1224,6 +1276,16 @@ class Engine:
                     atomic_write_bytes(resolve_target(key), data, mode=0o644,
                                        uid=pw.pw_uid,
                                        gid=users_gid if users_gid is not None else pw.pw_gid)
+                settings_key = os.path.join(pref, "usersettings")
+                try:
+                    if update_user_wallpaper_setting(settings_key):
+                        log.info("[应用] 用户 %s 桌面设置已刷新", name)
+                    else:
+                        warnings.append("用户 %s 还没有 DSM 桌面设置（请先登录该用户一次），壁纸文件已写入" % name)
+                except (OSError, ValueError) as e:
+                    warnings.append("用户 %s 桌面设置刷新失败: %s" % (name, e))
+                    applied["users_failed"].append({"user": name, "error": "usersettings: %s" % e})
+                    continue
                 applied["users_ok"].append(name)
                 log.info("[应用] 用户 %s 的桌面壁纸", name)
             except OSError as e:

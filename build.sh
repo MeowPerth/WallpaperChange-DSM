@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PKG_NAME="autowallpaper"
 VERSION="1.0.0"
-BUILD="0011"
+BUILD="0012"
 ARCH="epyc7002 x86_64"
 ARCH_TAG="x86_64"
 SPK_FILE="${ROOT}/dist/${PKG_NAME}_${ARCH_TAG}-dsm7_${VERSION}-${BUILD}.spk"
@@ -89,7 +89,7 @@ distributor_url="https://github.com/MeowPerth/WallpaperChange-DSM"
 helpurl="https://github.com/MeowPerth/WallpaperChange-DSM#readme"
 support_url="https://github.com/MeowPerth/WallpaperChange-DSM/issues"
 startable="yes"
-changelog="1.0.0-0011: 套件显示名称改为「壁纸自动更换」（英文 WallpaperChange），应用窗口标题同步。"
+changelog="1.0.0-0012: 修复 DSM 7.4 用户桌面壁纸缓存不刷新：同步更新 usersettings 的壁纸路径和缓存 id。"
 checksum="$CHECKSUM"
 EOF
 
