@@ -64,7 +64,7 @@
 ## 安装
 
 1. 从 [Releases](https://github.com/MeowPerth/WallpaperChange-DSM/releases) 下载最新 `.spk`，
-   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.0-0012.spk`；
+   或使用仓库内 `dist/autowallpaper_x86_64-dsm7_1.0.1-0013.spk`；
 2. 套件中心 → 右上角「手动安装」→ 选择该 `.spk`；
 3. 提示「发布者未经 Synology 验证」属正常（未申请官方签名），继续；
 4. 安装完成后，DSM 主菜单出现 **壁纸自动更换**（英文显示 **WallpaperChange**，仅管理员可见），点击打开；
@@ -225,7 +225,7 @@ DSM 桌面磁贴（ui/config + dsm-wrapper.js）
 
 ```bash
 ./build.sh
-# → dist/autowallpaper_x86_64-dsm7_1.0.0-0012.spk
+# → dist/autowallpaper_x86_64-dsm7_1.0.1-0013.spk
 ```
 
 构建机需要：**x86_64 Linux**、bash、tar、gzip、md5sum、python3、**gcc（静态编译）**。
@@ -379,6 +379,12 @@ SynoCommunity 的 ImageMagick。不安装也能用，只是不缩放、文件更
 - 备份恢复有目标路径白名单，synoinfo 原值重新转义，降低 manifest 被篡改后的风险。
 
 ## 更新日志
+
+### 1.0.1-0013
+
+- 版本号升级到 **1.0.1**。
+- 包含 `1.0.0-0012` 的 DSM 7.4 用户桌面壁纸缓存修复。
+- 无其他功能变更。
 
 ### 1.0.0-0012
 
